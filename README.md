@@ -55,3 +55,25 @@ All values are imported as text with ``XLSX TO JSON``
 Values can be text, number, or bool with ``JSON TO XLSX``, but you would need to use ``Collection`` for that.
 
 For more information see https://github.com/brechtsanders/xlsxio
+
+## Example
+
+```
+$path:=System folder(Desktop)+"sample.xlsx"
+
+  //all values are returned as string
+$json:=XLSX TO JSON ($path;XLSXIOREAD_SKIP_EMPTY_ROWS;$json_e)
+
+$xlsx:=JSON Parse($json)
+$_err:=JSON Parse($json_e)
+
+$row_height:=1  //set row height
+$detection_rows:=10  //how many rows to buffer to detect column widths
+
+
+$path:=System folder(Desktop)+"sample-copy.xlsx"
+  //only 1 sheet is supported
+JSON TO XLSX ($path;$json;$row_height;$detection_rows;$json_e)
+
+OPEN URL($path;"Microsoft Excel")
+```
