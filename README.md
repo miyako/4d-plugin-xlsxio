@@ -70,7 +70,6 @@ $_err:=JSON Parse($json_e)
 $row_height:=1  //set row height
 $detection_rows:=10  //how many rows to buffer to detect column widths
 
-
 $path:=System folder(Desktop)+"sample-copy.xlsx"
   //only 1 sheet is supported
 JSON TO XLSX ($path;$json;$row_height;$detection_rows;$json_e)
