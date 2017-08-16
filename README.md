@@ -44,3 +44,13 @@ XLSXIOREAD_SKIP_EMPTY_ROWS 1
 XLSXIOREAD_SKIP_EMPTY_CELLS 2
 XLSXIOREAD_SKIP_ALL_EMPTY 3
 XLSXIOREAD_SKIP_EXTRA_CELLS 4
+
+## Remarks
+
+Only the first sheet is exported with ``JSON TO XLSX``
+
+All values are imported as text with ``XLSX TO JSON``
+
+Values can be text, number, or bool with ``JSON TO XLSX``, but you would need to use ``Collection`` for that.
+
+For more information see https://github.com/brechtsanders/xlsxio
