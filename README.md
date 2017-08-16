@@ -1,5 +1,5 @@
 # 4d-plugin-xlsxio
-very simply XLSX library based on [XLSXIO](https://github.com/brechtsanders/xlsxio)
+very simple XLSX library based on [XLSXIO](https://github.com/brechtsanders/xlsxio)
 
 ### Platform
 
