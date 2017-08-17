@@ -74,8 +74,13 @@ JSONNODE *json_parse(C_TEXT &t)
 
 void json_stringify(JSONNODE *json, C_TEXT &t)
 {
-	json_char *json_string = json_write_formatted(json);
+	//json_char *json_string = json_write_formatted(json);
+	json_char *json_string = json_write(json);
 	std::wstring wstr = std::wstring(json_string);
+	
+#if VERSIONWIN
+	t.setUTF16String((const PA_Unichar *)wstr.c_str(), (uint32_t)wstr.length());
+#else
 	uint32_t dataSize = (uint32_t)((wstr.length() * sizeof(wchar_t))+ sizeof(PA_Unichar));
 	std::vector<char> buf(dataSize);
 	uint32_t len = PA_ConvertCharsetToCharset((char *)wstr.c_str(),
@@ -85,6 +90,7 @@ void json_stringify(JSONNODE *json, C_TEXT &t)
 																						dataSize,
 																						eVTC_UTF_16);
 	t.setUTF16String((const PA_Unichar *)&buf[0], len);
+#endif
 	json_free(json_string);
 }
 
