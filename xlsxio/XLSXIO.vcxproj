@@ -295,7 +295,7 @@
       <EntryPointSymbol>
       </EntryPointSymbol>
       <AdditionalLibraryDirectories>lib\32</AdditionalLibraryDirectories>
-      <AdditionalDependencies>libjson.7.6.1.lib;libexpat.lib;libzip.lib;xlsxio_read.lib;xlsxio_write.lib;libz.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libjson.lib;libexpat.lib;libzip.lib;xlsxio_read.lib;xlsxio_write.lib;libz.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -318,7 +318,7 @@
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <AdditionalDependencies>libjson.7.6.1.lib;libexpat.lib;libzip.lib;xlsxio_read.lib;xlsxio_write.lib;libz.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>libjson.lib;libexpat.lib;libzip.lib;xlsxio_read.lib;xlsxio_write.lib;libz.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>lib\64</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
