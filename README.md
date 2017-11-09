@@ -56,7 +56,7 @@ Values can be text, number, or bool with ``JSON TO XLSX``, but you would need to
 
 For more information see https://github.com/brechtsanders/xlsxio
 
-## Example
+## Examples
 
 ```
 $path:=System folder(Desktop)+"sample.xlsx"
