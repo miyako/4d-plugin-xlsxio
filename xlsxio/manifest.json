@@ -1,1 +1,16 @@
-﻿{"name":"XLSXIO","id":20000,"commands":[{"theme":"Read","syntax":"XLSX TO JSON(&T;&L;&T):T"},{"theme":"Write","syntax":"JSON TO XLSX(&T;&T;&L;&L;&T)"}]}
+﻿{
+	"name": "XLSXIO",
+	"id": 20000,
+	"commands": [
+							 {
+							 "theme": "Read",
+							 "syntax": "XLSX TO JSON(&T;&L;&T):T",
+							 "threadSafe": true
+							 },
+							 {
+							 "theme": "Write",
+							 "syntax": "JSON TO XLSX(&T;&T;&L;&L;&T)",
+							 "threadSafe": true
+							 }
+							 ]
+}

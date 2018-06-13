@@ -11,6 +11,7 @@
 #include "xlsxio_read.h"
 #include "xlsxio_write.h"
 #include "libjson.h"
+#include "libjson_methods.h"
 
 #include <stdio.h>
 #include <stdlib.h>

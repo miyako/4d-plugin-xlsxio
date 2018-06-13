@@ -47,182 +47,6 @@ void CommandDispatcher (PA_long32 pProcNum, sLONG_PTR *pResult, PackagePtr pPara
 	}
 }
 
-#pragma mark JSON
-
-JSONNODE *json_parse(C_TEXT &t)
-{
-	std::wstring u32;
-	
-#if VERSIONWIN
-	u32 = std::wstring((wchar_t *)t.getUTF16StringPtr());
-#else
-	
-	uint32_t dataSize = (t.getUTF16Length() * sizeof(wchar_t))+ sizeof(wchar_t);
-	std::vector<char> buf(dataSize);
-	
-	PA_ConvertCharsetToCharset((char *)t.getUTF16StringPtr(),
-														 t.getUTF16Length() * sizeof(PA_Unichar),
-														 eVTC_UTF_16,
-														 (char *)&buf[0],
-														 dataSize,
-														 eVTC_UTF_32);
-	
-	u32 = std::wstring((wchar_t *)&buf[0]);
-#endif
-	return json_parse((json_const json_char *)u32.c_str());
-}
-
-void json_stringify(JSONNODE *json, C_TEXT &t)
-{
-	//json_char *json_string = json_write_formatted(json);
-	json_char *json_string = json_write(json);
-	std::wstring wstr = std::wstring(json_string);
-	
-#if VERSIONWIN
-	t.setUTF16String((const PA_Unichar *)wstr.c_str(), (uint32_t)wstr.length());
-#else
-	uint32_t dataSize = (uint32_t)((wstr.length() * sizeof(wchar_t))+ sizeof(PA_Unichar));
-	std::vector<char> buf(dataSize);
-	uint32_t len = PA_ConvertCharsetToCharset((char *)wstr.c_str(),
-																						(PA_long32)(wstr.length() * sizeof(wchar_t)),
-																						eVTC_UTF_32,
-																						(char *)&buf[0],
-																						dataSize,
-																						eVTC_UTF_16);
-	t.setUTF16String((const PA_Unichar *)&buf[0], len);
-#endif
-	json_free(json_string);
-}
-
-#pragma mark JSON Set
-
-void json_uconv(const wchar_t *value, CUTF8String &u8)
-{
-	if(value)
-	{
-		C_TEXT t;
-		std::wstring wstr = std::wstring(value);
-		
-#if VERSIONWIN
-		t.setUTF16String((const PA_Unichar *)wstr.c_str(), (uint32_t)wstr.length());
-#else
-		uint32_t dataSize = (uint32_t)((wstr.length() * sizeof(wchar_t)) + sizeof(PA_Unichar));
-		std::vector<char> buf(dataSize);
-		
-		uint32_t len = PA_ConvertCharsetToCharset((char *)wstr.c_str(),
-																							(PA_long32)(wstr.length() * sizeof(wchar_t)),
-																							eVTC_UTF_32,
-																							(char *)&buf[0],
-																							dataSize,
-																							eVTC_UTF_16);
-		
-		t.setUTF16String((const PA_Unichar *)&buf[0], len);
-#endif
-		t.copyUTF8String(&u8);
-	}else
-	{
-		u8 = (const uint8_t *)"";
-	}
-	
-}
-
-void json_wconv(const char *value, std::wstring &u32)
-{
-	if(value)
-	{
-		C_TEXT t;
-		CUTF8String u8;
-		
-		u8 = (const uint8_t *)value;
-		t.setUTF8String(&u8);
-		
-#if VERSIONWIN
-		u32 = std::wstring((wchar_t *)t.getUTF16StringPtr());
-#else
-		
-		uint32_t dataSize = (t.getUTF16Length() * sizeof(wchar_t))+ sizeof(wchar_t);
-		std::vector<char> buf(dataSize);
-		
-		PA_ConvertCharsetToCharset((char *)t.getUTF16StringPtr(),
-															 t.getUTF16Length() * sizeof(PA_Unichar),
-															 eVTC_UTF_16,
-															 (char *)&buf[0],
-															 dataSize,
-															 eVTC_UTF_32);
-		
-		u32 = std::wstring((wchar_t *)&buf[0]);
-#endif
-	}else
-	{
-		u32 = L"";
-	}
-	
-}
-
-void json_set_i(JSONNODE *n, const wchar_t *name, json_int_t value)
-{
-	if(n)
-	{
-		json_push_back(n, json_new_i(name, value));
-	}
-}
-
-void json_set_text(JSONNODE *n, const wchar_t *name, char *value)
-{
-	if(n)
-	{
-		if(value)
-		{
-			std::wstring w32;
-			json_wconv(value, w32);
-			json_push_back(n, json_new_a(name, w32.c_str()));
-			
-		}else
-		{
-			/*
-			JSONNODE *node = json_new_a(name, L"");
-			json_nullify(node);
-			 */
-			JSONNODE *node = json_new(JSON_NULL);
-			json_push_back(n, node);
-		}
-	}
-}
-
-void json_append_text(JSONNODE *n, char *value)
-{
-	if(n)
-	{
-		if(value)
-		{
-			std::wstring w32;
-			json_wconv(value, w32);
-			
-			JSONNODE *node = json_new(JSON_STRING);
-			json_set_a(node, w32.c_str());
-			json_push_back(n, node);
-		}else
-		{
-			JSONNODE *node = json_new(JSON_NULL);
-			json_push_back(n, node);
-		}
-	}
-}
-
-void json_set_name_i(JSONNODE *n, int i)
-{
-	if(n)
-	{
-		char buf[11];
-		snprintf(buf, sizeof(buf), "%d", i);
-		
-		std::wstring w32;
-		json_wconv(buf, w32);
-		
-		json_set_name(n, w32.c_str());
-	}
-}
-
 #pragma mark -
 
 // ------------------------------------- Read -------------------------------------
@@ -250,8 +74,8 @@ void XLSX_TO_JSON(sLONG_PTR *pResult, PackagePtr pParams)
 	if(!xlsxioread)
 	{
 		//error
-		json_set_text(json_errors, L"error", (char *)"failed to open xlsx");
-		json_set_text(json_errors, L"path", (char *)path.c_str());
+		json_set_s_for_key(json_errors, L"error", (char *)"failed to open xlsx");
+		json_set_s_for_key(json_errors, L"path", (char *)path.c_str());
 	}else
 	{
 		xlsxioreadersheetlist sheetlist = xlsxioread_sheetlist_open(xlsxioread);
@@ -259,8 +83,8 @@ void XLSX_TO_JSON(sLONG_PTR *pResult, PackagePtr pParams)
 		if(!sheetlist)
 		{
 			//error
-			json_set_text(json_errors, L"error", (char *)"failed to read sheet list");
-			json_set_text(json_errors, L"path", (char *)path.c_str());
+			json_set_s_for_key(json_errors, L"error", (char *)"failed to read sheet list");
+			json_set_s_for_key(json_errors, L"path", (char *)path.c_str());
 		}else
 		{
 			const char *sheetname;
@@ -268,7 +92,7 @@ void XLSX_TO_JSON(sLONG_PTR *pResult, PackagePtr pParams)
 			{
 				JSONNODE *json_sheet = json_new(JSON_NODE);
 				JSONNODE *json_sheet_rows = json_new(JSON_ARRAY);
-				json_set_text(json_sheet, L"name", (char *)sheetname);
+				json_set_s_for_key(json_sheet, L"name", (char *)sheetname);
 				char *value;
 				xlsxioreadersheet sheet = xlsxioread_sheet_open(xlsxioread, sheetname, Param2_options.getIntValue());
 				while (xlsxioread_sheet_next_row(sheet))
@@ -277,7 +101,7 @@ void XLSX_TO_JSON(sLONG_PTR *pResult, PackagePtr pParams)
 					JSONNODE *json_sheet_row_values = json_new(JSON_ARRAY);
 					while ((value = xlsxioread_sheet_next_cell(sheet)) != NULL)
 					{
-						json_append_text(json_sheet_row_values, value);
+						json_push_back_s(json_sheet_row_values, value);
 						free(value);
 					}
 					json_set_name(json_sheet_row_values, L"values");
@@ -333,7 +157,7 @@ void JSON_TO_XLSX(sLONG_PTR *pResult, PackagePtr pParams)
 	if(!json)
 	{
 		//error
-		json_set_text(json_errors, L"error", (char *)"failed to parse json");
+		json_set_s_for_key(json_errors, L"error", (char *)"failed to parse json");
 	}else
 	{
 		JSONNODE *json_sheets = json_get(json, L"sheets");
@@ -351,14 +175,14 @@ void JSON_TO_XLSX(sLONG_PTR *pResult, PackagePtr pParams)
 						if(_sheetname)
 						{
 							CUTF8String sheetname;
-							json_uconv(_sheetname, sheetname);
+							json_wconv(_sheetname, &sheetname);
 							xlsxiowriter xlsxiowrite = xlsxiowrite_open((const char *)path.c_str(), (const char *)sheetname.c_str());
 							
 							if (!xlsxiowrite)
 							{
 								//error
-								json_set_text(json_errors, L"error", (char *)"failed to create xlsx");
-								json_set_text(json_errors, L"path", (char *)path.c_str());
+								json_set_s_for_key(json_errors, L"error", (char *)"failed to create xlsx");
+								json_set_s_for_key(json_errors, L"path", (char *)path.c_str());
 							}else
 							{
 								xlsxiowrite_set_row_height(xlsxiowrite, Param3_row_height.getIntValue());
@@ -391,7 +215,7 @@ void JSON_TO_XLSX(sLONG_PTR *pResult, PackagePtr pParams)
 																{
 																	json_char *_value = json_as_string(json_sheet_row_value);
 																	CUTF8String value;
-																	json_uconv(_value, value);
+																	json_wconv(_value, &value);
 																	xlsxiowrite_add_cell_string(xlsxiowrite, (const char *)value.c_str());
 																	json_free(_value);
 																}
@@ -406,35 +230,35 @@ void JSON_TO_XLSX(sLONG_PTR *pResult, PackagePtr pParams)
 																case JSON_NODE:
 																default:
 																	//error; sheets[0].rows[].values[] must be null, string, number or bool
-																	json_set_text(json_errors, L"error", (char *)"sheets[0].rows[].values[] must be null, string, number or bool");
-																	json_set_i(json_errors, L"row", i);
-																	json_set_i(json_errors, L"col", j);
+																	json_set_s_for_key(json_errors, L"error", (char *)"sheets[0].rows[].values[] must be null, string, number or bool");
+																	json_set_i_for_key(json_errors, L"row", i);
+																	json_set_i_for_key(json_errors, L"col", j);
 																	break;
 															}
 														}
 													}else
 													{
 														//error; sheets[0].rows[].values is not an array
-														json_set_text(json_errors, L"error", (char *)"sheets[0].rows[].values is not an array");
-														json_set_i(json_errors, L"row", i);
+														json_set_s_for_key(json_errors, L"error", (char *)"sheets[0].rows[].values is not an array");
+														json_set_i_for_key(json_errors, L"row", i);
 													}
 												}else
 												{
 													//error; sheets[0].rows[].values is missing
-													json_set_text(json_errors, L"error", (char *)"sheets[0].rows[].values is missing");
-													json_set_i(json_errors, L"row", i);
+													json_set_s_for_key(json_errors, L"error", (char *)"sheets[0].rows[].values is missing");
+													json_set_i_for_key(json_errors, L"row", i);
 												}
 											}
 											xlsxiowrite_next_row(xlsxiowrite);
 										}
 									}else{
 										//error; sheets[0].rows is not an array
-										json_set_text(json_errors, L"error", (char *)"sheets[0].rows is not an array");
+										json_set_s_for_key(json_errors, L"error", (char *)"sheets[0].rows is not an array");
 									}
 								}else
 								{
 									//error; sheets[0].rows is missing
-									json_set_text(json_errors, L"error", (char *)"sheets[0].rows is missing");
+									json_set_s_for_key(json_errors, L"error", (char *)"sheets[0].rows is missing");
 								}
 								xlsxiowrite_close(xlsxiowrite);
 							}
@@ -442,27 +266,27 @@ void JSON_TO_XLSX(sLONG_PTR *pResult, PackagePtr pParams)
 						}else
 						{
 							//error; sheets[0].name must be a string
-							json_set_text(json_errors, L"error", (char *)"sheets[0].name must be a string");
+							json_set_s_for_key(json_errors, L"error", (char *)"sheets[0].name must be a string");
 						}
 					}else
 					{
 						//error; sheets[0].name is missing
-						json_set_text(json_errors, L"error", (char *)"sheets[0].name is missing");
+						json_set_s_for_key(json_errors, L"error", (char *)"sheets[0].name is missing");
 					}
 				}else
 				{
 					//error; sheets[0] is missing
-					json_set_text(json_errors, L"error", (char *)"sheets[0] is missing");
+					json_set_s_for_key(json_errors, L"error", (char *)"sheets[0] is missing");
 				}
 			}else
 			{
 				//error; sheets is not an array
-				json_set_text(json_errors, L"error", (char *)"sheets is not an array");
+				json_set_s_for_key(json_errors, L"error", (char *)"sheets is not an array");
 			}
 		}else
 		{
 			//error; sheets is missing
-			json_set_text(json_errors, L"error", (char *)"sheets[0] is missing");
+			json_set_s_for_key(json_errors, L"error", (char *)"sheets[0] is missing");
 		}
 		json_delete(json);
 	}
