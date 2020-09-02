@@ -21,8 +21,18 @@ Parameter|Type|Description
 ------------|------------|----
 path|TEXT|location of ``.XLSX`` document
 options|LONGINT|options
-error|TEXT|error in ``JSON``
+error|TEXT|on outout, error in ``JSON``; on input the sheet name to read
 json|TEXT|values in ``JSON``
+
+```4d
+XLSX SHEET NAMES (path;names)
+```
+
+Parameter|Type|Description
+------------|------------|----
+path|TEXT|location of ``.XLSX`` document
+names|TEXT ARRAY|sheet names
+
 
 ```4d
 JSON TO XLSX (path;json;row_height;detection_rows;error)
