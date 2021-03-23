@@ -29,13 +29,15 @@
 		D13FF9CE24FF735100FCC7F1 /* C_TYPES.h in Headers */ = {isa = PBXBuildFile; fileRef = D13FF9C924FF735000FCC7F1 /* C_TYPES.h */; };
 		D13FF9CF24FF735100FCC7F1 /* C_LONGINT.h in Headers */ = {isa = PBXBuildFile; fileRef = D13FF9CA24FF735000FCC7F1 /* C_LONGINT.h */; };
 		D13FF9D024FF735100FCC7F1 /* C_TEXT.h in Headers */ = {isa = PBXBuildFile; fileRef = D13FF9CB24FF735100FCC7F1 /* C_TEXT.h */; };
+		D1A3D617260A154400B1EC5E /* libbz2.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D1A3D616260A154400B1EC5E /* libbz2.tbd */; };
+		D1A3D61A260A154B00B1EC5E /* liblzma.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = D1A3D619260A154B00B1EC5E /* liblzma.tbd */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		D134D4AB1A030B7A008D14EF /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = ..;
+			dstPath = "";
 			dstSubfolderSpec = 7;
 			files = (
 				D134D4AC1A030BA0008D14EF /* manifest.json in CopyFiles */,
@@ -76,6 +78,8 @@
 		D13FF9CA24FF735000FCC7F1 /* C_LONGINT.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = C_LONGINT.h; path = "4D Plugin API/Classes/C_LONGINT.h"; sourceTree = "<group>"; };
 		D13FF9CB24FF735100FCC7F1 /* C_TEXT.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = C_TEXT.h; path = "4D Plugin API/Classes/C_TEXT.h"; sourceTree = "<group>"; };
 		D14D10DD1A03A8A5008B3411 /* constants.xlf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = constants.xlf; sourceTree = "<group>"; };
+		D1A3D616260A154400B1EC5E /* libbz2.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libbz2.tbd; path = usr/lib/libbz2.tbd; sourceTree = SDKROOT; };
+		D1A3D619260A154B00B1EC5E /* liblzma.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = liblzma.tbd; path = usr/lib/liblzma.tbd; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,6 +87,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D1A3D61A260A154B00B1EC5E /* liblzma.tbd in Frameworks */,
+				D1A3D617260A154400B1EC5E /* libbz2.tbd in Frameworks */,
 				D13FF9C224FF72F100FCC7F1 /* libexpat.a in Frameworks */,
 				D13FF9C324FF72F100FCC7F1 /* libxlsxio_write.a in Frameworks */,
 				D13FF9C424FF72F100FCC7F1 /* libxlsxio_read.a in Frameworks */,
@@ -174,6 +180,8 @@
 		D16FBB3C22A4C07E008F0416 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D1A3D619260A154B00B1EC5E /* liblzma.tbd */,
+				D1A3D616260A154400B1EC5E /* libbz2.tbd */,
 				D13FF9BD24FF72F100FCC7F1 /* libexpat.a */,
 				D13FF9BF24FF72F100FCC7F1 /* libxlsxio_read.a */,
 				D13FF9BE24FF72F100FCC7F1 /* libxlsxio_write.a */,
@@ -367,7 +375,7 @@
 					"$(PROJECT_DIR)/a",
 				);
 				LIBRARY_STYLE = Bundle;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				OTHER_REZFLAGS = "";
@@ -419,7 +427,7 @@
 					"$(PROJECT_DIR)/a",
 				);
 				LIBRARY_STYLE = Bundle;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				OTHER_REZFLAGS = "";
@@ -469,7 +477,7 @@
 					"$(PROJECT_DIR)/a",
 				);
 				LIBRARY_STYLE = Bundle;
-				MARKETING_VERSION = 2.1.0;
+				MARKETING_VERSION = 2.2.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = "";
 				OTHER_REZFLAGS = "";
