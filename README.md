@@ -1,11 +1,12 @@
-![platform](https://img.shields.io/static/v1?label=platform&message=osx-64%20|%20win-32%20|%20win-64&color=blue)
 ![version](https://img.shields.io/badge/version-16%2B-8331AE)
+![platform](https://img.shields.io/static/v1?label=platform&message=mac-intel%20|%20mac-arm%20|%20win-64&color=blue)
+[![license](https://img.shields.io/github/license/miyako/4d-plugin-xlsxio)](LICENSE)
 ![downloads](https://img.shields.io/github/downloads/miyako/4d-plugin-xlsxio/total)
+
+**Note**: for v17 and earlier, move `manifest.json` to `Contents`
 
 # 4d-plugin-xlsxio
 very simple XLSX library based on [XLSXIO](https://github.com/brechtsanders/xlsxio)
-
-To use on v16 or v17, move manifest.json to contents.
 
 ## Syntax
 
