@@ -509,6 +509,9 @@ void XLSX_SHEET_NAMES(PA_PluginParameters params)
 	if ((paramKind == eVK_ArrayUnicode) || (paramKind == eVK_Undefined))
 	{
 		PA_SetVariableParameter(params, 2, names, 0);
+	}else
+	{
+		PA_ClearVariable(&names);
 	}
 	
 }
