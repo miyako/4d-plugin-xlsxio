@@ -219,6 +219,7 @@ void XLSX_TO_JSON(PA_PluginParameters params) {
                         while ((value = xlsxioread_sheet_next_cell(sheet)) != NULL)
                         {
 							json_sheet_row_values.append(value);
+							xlsxioread_free(value);
                         }
                         
                         json_sheet_row["values"] = json_sheet_row_values;
@@ -380,10 +381,10 @@ void JSON_TO_XLSX(PA_PluginParameters params) {
                                                                     }
                                                                         break;
                                                                     case Json::intValue:
-                                                                        xlsxiowrite_add_cell_int(xlsxiowrite, json_sheet_row_value.asInt());
+                                                                        xlsxiowrite_add_cell_int(xlsxiowrite, json_sheet_row_value.asInt64());
                                                                         break;
                                                                     case Json::uintValue:
-                                                                            xlsxiowrite_add_cell_int(xlsxiowrite, json_sheet_row_value.asUInt());
+                                                                            xlsxiowrite_add_cell_int(xlsxiowrite, json_sheet_row_value.asUInt64());
                                                                             break;
                                                                     case Json::realValue:
                                                                         xlsxiowrite_add_cell_float(xlsxiowrite, json_sheet_row_value.asDouble());
