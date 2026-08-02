@@ -1,1 +1,5 @@
 test/userPreferences.*
+.vs/*
+Objs/*
+test/Plugins/XLSXIO.bundle/Contents/Windows64/XLSXIO.exp
+test/Plugins/XLSXIO.bundle/Contents/Windows64/XLSXIO.lib

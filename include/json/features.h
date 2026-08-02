@@ -3,8 +3,8 @@
 // recognized in your jurisdiction.
 // See file LICENSE for detail or copy at http://jsoncpp.sourceforge.net/LICENSE
 
-#ifndef JSON_FEATURES_H_INCLUDED
-#define JSON_FEATURES_H_INCLUDED
+#ifndef CPPTL_JSON_FEATURES_H_INCLUDED
+#define CPPTL_JSON_FEATURES_H_INCLUDED
 
 #if !defined(JSON_IS_AMALGAMATION)
 #include "forwards.h"
@@ -41,21 +41,21 @@ public:
   Features();
 
   /// \c true if comments are allowed. Default: \c true.
-  bool allowComments_{true};
+  bool allowComments_;
 
   /// \c true if root must be either an array or an object value. Default: \c
   /// false.
-  bool strictRoot_{false};
+  bool strictRoot_;
 
   /// \c true if dropped null placeholders are allowed. Default: \c false.
-  bool allowDroppedNullPlaceholders_{false};
+  bool allowDroppedNullPlaceholders_;
 
   /// \c true if numeric object key are allowed. Default: \c false.
-  bool allowNumericKeys_{false};
+  bool allowNumericKeys_;
 };
 
 } // namespace Json
 
 #pragma pack(pop)
 
-#endif // JSON_FEATURES_H_INCLUDED
+#endif // CPPTL_JSON_FEATURES_H_INCLUDED
