@@ -336,7 +336,7 @@ void JSON_TO_XLSX(PA_PluginParameters params) {
                                     xlsxiowrite_set_detection_rows(xlsxiowrite,
                                                                    Param4_detection_rows.getIntValue());
                                     
-                                    Json::Value json_sheet_rows = json_sheet["rows"];
+                                    const Json::Value& json_sheet_rows = json_sheet["rows"];
                                     
                                     if(json_sheet_rows)
                                     {
@@ -354,10 +354,10 @@ void JSON_TO_XLSX(PA_PluginParameters params) {
 													PA_YieldAbsolute();
 												}
 
-                                                Json::Value json_sheet_row = json_sheet_rows[i];
+                                                const Json::Value& json_sheet_row = json_sheet_rows[i];
                                                 if(json_sheet_row.isObject())
                                                 {
-                                                    Json::Value json_sheet_row_values = json_sheet_row["values"];
+                                                    const Json::Value& json_sheet_row_values = json_sheet_row["values"];
                                                     
                                                     if(json_sheet_row_values)
                                                     {
@@ -365,7 +365,7 @@ void JSON_TO_XLSX(PA_PluginParameters params) {
                                                         {
                                                             for(unsigned int j = 0; j < json_sheet_row_values.size();++j)
                                                             {
-                                                                Json::Value json_sheet_row_value = json_sheet_row_values[j];
+                                                                const Json::Value& json_sheet_row_value = json_sheet_row_values[j];
                                                                 
                                                                 Json::ValueType type = json_sheet_row_value.type();
                                                                 
