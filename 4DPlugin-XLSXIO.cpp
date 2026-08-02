@@ -219,7 +219,7 @@ void XLSX_TO_JSON(PA_PluginParameters params) {
                         while ((value = xlsxioread_sheet_next_cell(sheet)) != NULL)
                         {
 							json_sheet_row_values.append(value);
-							xlsxioread_free(value);
+							free(value);
                         }
                         
                         json_sheet_row["values"] = json_sheet_row_values;
