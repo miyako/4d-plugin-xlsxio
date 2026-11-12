@@ -54,9 +54,9 @@ imports = subprocess.check_output(["nm", "-u", str(binary)], text=True)
 allowed = {
     "__Unwind_Resume", "___assert_rtn", "___gxx_personality_v0",
     "___stack_chk_fail", "___stack_chk_guard", "__tlv_bootstrap",
-    "_abort", "_calloc", "_free", "_localeconv", "_malloc", "_memcmp",
+    "_abort", "_calloc", "_free", "_localeconv", "_malloc", "_memchr", "_memcmp",
     "_memcpy", "_memmove", "_memset", "_snprintf", "_sscanf",
-    "_strchr", "_strcmp", "_strlen", "_time",
+    "_strchr", "_strcmp", "_strlen", "_time", "_wcslen",
 }
 runtime_prefixes = (
     "__Z", "___asan_", "___ubsan_", "___cxa_", "___sanitizer_",
@@ -69,9 +69,16 @@ cases = [
     "prepopulated-caller", "empty-caller", "undefined-destination", "rejected-kind",
     "empty-result", "failed-open", "failed-list", "repeated-reuse",
     "sdk-transfer-controls", "wrapper-controls", "scalar-dispatcher-controls",
+    "json-set-narrow", "json-set-wide", "json-set-wide-value", "json-set-u16",
+    "json-picture-setter", "json-null-picture-control", "json-reference-controls",
+    "json-get-text", "json-get-bool", "json-get-number", "json-get-collection",
+    "json-get-failure", "json-has-failure", "json-stringify-controls",
+    "json-stringify-failure", "json-copy-failure", "array-owning-copy", "blob-owning-copy",
+    "json-set-failure", "json-string-get-failure", "json-stringify-get-failure",
 ]
 failures = []
 for case in cases:
+    print("CASE", case, flush=True)
     result = subprocess.run([str(binary), case], check=False)
     if result.returncode:
         failures.append(case)

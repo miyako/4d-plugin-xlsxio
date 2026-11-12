@@ -2,11 +2,15 @@
 #include "PrivateTypes.h"
 #include "EntryPoints.h"
 #include "ARRAY_TEXT.h"
+#include "C_BLOB.h"
+#include "support/4DPlugin-JSON.h"
 #include <cassert>
 #include <cstring>
 #include <iostream>
 #include <map>
 #include <set>
+#include <stdexcept>
+#include <type_traits>
 
 static std::set<PA_Unichar*> strings;
 static std::map<PA_Handle, size_t> handles;
@@ -16,6 +20,33 @@ static bool failOpen = false, failList = false;
 static unsigned readerOwners = 0, listOwners = 0;
 static size_t sheetIndex = 0;
 static std::vector<std::string> sheets;
+struct SyntheticRef {
+    std::map<std::u16string, PA_Variable> properties;
+};
+static std::map<SyntheticRef*, unsigned> references;
+static bool failProperty = false, failHas = false, failStringify = false, failCopy = false;
+static bool failSet = false, nullEmptyPicture = false;
+static bool failStringGet = false;
+static PA_Variable commandResult = {};
+
+static void releaseVariable(PA_Variable& value);
+
+static SyntheticRef* newReference() {
+    auto* reference = new SyntheticRef;
+    references[reference] = 1;
+    return reference;
+}
+
+static void releaseReference(void* pointer) {
+    if (!pointer) return;
+    auto* reference = static_cast<SyntheticRef*>(pointer);
+    assert(references.count(reference));
+    if (--references.at(reference) == 0) {
+        references.erase(reference);
+        for (auto& entry : reference->properties) releaseVariable(entry.second);
+        delete reference;
+    }
+}
 
 [[noreturn]] static void unexpected() { std::abort(); }
 
@@ -52,13 +83,45 @@ static void releaseVariable(PA_Variable& value) {
         std::free(*handle);
         delete handle;
         handles.erase(handle);
-    } else if (value.fType == eVK_Unistring) {
+    } else if (value.fType == eVK_Unistring || value.fType == 0) {
         releaseString(value.uValue.fString);
+    } else if (value.fType == eVK_Object) {
+        releaseReference(value.uValue.fObject);
+    } else if (value.fType == eVK_Collection) {
+        releaseReference(value.uValue.fCollection);
+    } else if (value.fType == eVK_Picture) {
+        releaseReference(value.uValue.fPicture);
     } else {
-        assert(value.fType == eVK_Undefined || value.fType == eVK_Longint);
+        assert(value.fType == eVK_Undefined || value.fType == eVK_Longint ||
+               value.fType == eVK_Boolean || value.fType == eVK_Real);
     }
     value = {};
     value.fType = eVK_Undefined;
+}
+
+static PA_Variable cloneVariable(PA_Variable value) {
+    if (value.fType == eVK_Unistring || value.fType == 0)
+        value.uValue.fString = makeString(value.uValue.fString.fString);
+    else if (value.fType == eVK_Object || value.fType == eVK_Collection ||
+             value.fType == eVK_Picture) {
+        auto* reference = static_cast<SyntheticRef*>(value.uValue.fObject);
+        assert(references.count(reference));
+        ++references.at(reference);
+    }
+    return value;
+}
+
+static std::u16string keyText(PA_Unistring key) {
+    PA_Unichar* pointer = key.fString;
+    assert(strings.count(pointer));
+    return std::u16string(pointer, pointer + key.fLength);
+}
+
+static void poison(PA_Variable* output, EngineBlock* eb) {
+    // Failed output has no ownership or interpretation contract.
+    std::memset(output, 0xa5, sizeof(*output));
+    output->fType = 0; // The SDK normalizes raw zero to text.
+    eb->fError = eER_CallNotImplemented;
 }
 
 static void host(short selector, EngineBlock* eb) {
@@ -79,6 +142,81 @@ static void host(short selector, EngineBlock* eb) {
         case EX_CLEAR_VARIABLE:
             releaseVariable(*static_cast<PA_Variable*>(eb->fPtr1));
             break;
+        case EX_VARIABLE_TO_STRING: {
+            auto* value = reinterpret_cast<PA_Variable*>(eb->fHandle);
+            assert(value->fType == eVK_Unistring || value->fType == 0);
+            PA_Unichar* pointer = value->uValue.fString.fString;
+            assert(strings.count(pointer));
+            if (failStringGet) {
+                static PA_Unichar uninterpreted[] = {'X', 0};
+                eb->fUniString1 = {1, uninterpreted, 0, 0};
+                eb->fError = eER_CallNotImplemented;
+            } else eb->fUniString1 = value->uValue.fString;
+            break;
+        }
+        case EX_CREATE_PICTURE:
+            assert(!eb->fPtr1 && eb->fParam1 == 0);
+            eb->fPicture = nullEmptyPicture ? nullptr : newReference();
+            break;
+        case EX_DISPOSE_PICTURE:
+            releaseReference(eb->fPicture);
+            break;
+        case EX_GET_OBJ_VALUE: {
+            assert(eb->fShort == eVK_Object);
+            auto* object = static_cast<SyntheticRef*>(eb->fPtr1);
+            assert(references.count(object));
+            auto* output = static_cast<PA_Variable*>(eb->fPtr2);
+            if (failProperty) poison(output, eb);
+            else *output = cloneVariable(object->properties.at(keyText(eb->fUniString1)));
+            break;
+        }
+        case EX_SET_OBJ_VALUE: {
+            assert(eb->fShort == eVK_Object);
+            auto* object = static_cast<SyntheticRef*>(eb->fPtr1);
+            assert(references.count(object));
+            if (failSet) {
+                eb->fError = eER_CallNotImplemented;
+                break;
+            }
+            auto key = keyText(eb->fUniString1);
+            auto found = object->properties.find(key);
+            if (found != object->properties.end()) releaseVariable(found->second);
+            object->properties[key] = cloneVariable(*static_cast<PA_Variable*>(eb->fPtr2));
+            break;
+        }
+        case EX_EXECUTE_COMMAND_BY_ID: {
+            auto** args = static_cast<PA_Variable**>(eb->fPtr1);
+            auto* output = static_cast<PA_Variable*>(eb->fPtr2);
+            if (eb->fParam1 == 1231) { // OB Is defined
+                assert(eb->fParam2 == 2);
+                if (failHas) poison(output, eb);
+                else {
+                    auto* object = static_cast<SyntheticRef*>(args[0]->uValue.fObject);
+                    assert(references.count(object));
+                    *output = {};
+                    PA_SetBooleanVariable(output,
+                        object->properties.count(keyText(args[1]->uValue.fString)) != 0);
+                }
+            } else if (eb->fParam1 == 1225) { // OB Copy
+                assert(eb->fParam2 == 1);
+                if (failCopy) poison(output, eb);
+                else {
+                    auto* source = static_cast<SyntheticRef*>(args[0]->uValue.fObject);
+                    assert(references.count(source));
+                    auto* copy = newReference();
+                    for (auto entry : source->properties)
+                        copy->properties[entry.first] = cloneVariable(entry.second);
+                    PA_SetObjectVariable(output, copy);
+                }
+            } else if (eb->fParam1 == 1217) { // JSON Stringify
+                assert(eb->fParam2 == 1);
+                auto* object = static_cast<SyntheticRef*>(args[0]->uValue.fObject);
+                assert(references.count(object));
+                if (failStringify) poison(output, eb);
+                else *output = cloneVariable(commandResult);
+            } else unexpected();
+            break;
+        }
         case EX_HANDLE_MANAGER: {
             auto handle = eb->fHandle;
             switch (eb->fParam1) {
@@ -272,6 +410,17 @@ static void sdkControls() {
 }
 
 static void wrapperControls() {
+    const uint8_t payload[] = {0, 1, 0xff};
+    C_BLOB blob;
+    blob.setBytes(payload, sizeof(payload));
+    assert(blob.getBytesLength() == sizeof(payload));
+    assert(std::memcmp(blob.getBytesPtr(), payload, sizeof(payload)) == 0);
+    CBytes source;
+    source.setBytes(payload, sizeof(payload));
+    CBytes copy = source;
+    source.addBytes(payload, sizeof(payload));
+    assert(copy.getBytesLength() == sizeof(payload));
+    assert(copy.getBytesPtr() != source.getBytesPtr());
     const char* utf8[] = {"ASCII", "\xe6\x97\xa5", "\xf0\x9f\x98\x80", ""};
     const std::u16string expected[] = {u"ASCII", u"\u65e5", u"\U0001f600", u""};
     ARRAY_TEXT array;
@@ -323,6 +472,226 @@ static void scalarDispatcherControls() {
     assert(!readerOwners && !listOwners);
 }
 
+static void jsonSetter(const std::string& name) {
+    auto* object = newReference();
+    const char* utf8[] = {"ASCII", "\xe6\x97\xa5", "\xf0\x9f\x98\x80", ""};
+    const wchar_t* wide[] = {L"ASCII", L"\u65e5", L"\U0001f600", L""};
+    const std::u16string expected[] = {u"ASCII", u"\u65e5", u"\U0001f600", u""};
+    for (int round = 0; round < 3; ++round) {
+        for (int i = 0; i < 4; ++i) {
+            if (name == "json-set-narrow") ob_set_s(object, "key", utf8[i]);
+            else if (name == "json-set-wide") ob_set_s(object, L"key", utf8[i]);
+            else if (name == "json-set-wide-value") ob_set_a(object, L"key", wide[i]);
+            else {
+                CUTF16String value(expected[i].begin(), expected[i].end());
+                ob_set_a(object, L"key", &value);
+            }
+            equal(object->properties.at(u"key").uValue.fString, expected[i]);
+        }
+    }
+    PA_DisposeObject(object);
+}
+
+static void pictureSetter(bool emptyNull) {
+    nullEmptyPicture = emptyNull;
+    auto* object = newReference();
+    for (int round = 0; round < 3; ++round) {
+        auto* picture = newReference();
+        ob_set_p(object, L"key", picture);
+        assert(references.at(picture) == 1); // The property owns the consumed input.
+        assert(object->properties.at(u"key").uValue.fPicture == picture);
+    }
+    auto* untouched = newReference();
+    ob_set_p(nullptr, L"key", untouched);
+    assert(references.at(untouched) == 1);
+    releaseReference(untouched);
+    PA_DisposeObject(object);
+}
+
+static PA_Variable fixtureValue(int kind) {
+    PA_Variable value = {};
+    value.fType = eVK_Undefined;
+    if (kind == 0 || kind == 1) {
+        auto string = text(u"ASCII-\u65e5-\U0001f600");
+        PA_SetStringVariable(&value, &string);
+        if (kind == 1) value.fType = 0;
+    } else if (kind == 2) PA_SetBooleanVariable(&value, true);
+    else if (kind == 3) PA_SetRealVariable(&value, 42.5);
+    else if (kind == 4) PA_SetObjectVariable(&value, newReference());
+    else if (kind == 5) PA_SetCollectionVariable(&value, newReference());
+    else if (kind == 6) PA_SetPictureVariable(&value, newReference());
+    else unexpected();
+    return value;
+}
+
+static void callGetter(int getter, SyntheticRef* object, int expectedKind) {
+    if (getter == 0) {
+        CUTF8String output(reinterpret_cast<const uint8_t*>("unchanged"));
+        assert(ob_get_a(object, L"key", &output));
+        const char* expected = expectedKind <= 1 ?
+            "ASCII-\xe6\x97\xa5-\xf0\x9f\x98\x80" : "unchanged";
+        assert(std::string(output.begin(), output.end()) == expected);
+    } else if (getter == 1) {
+        assert(ob_get_b(object, L"key") == (expectedKind == 2));
+    } else if (getter == 2) {
+        assert(ob_get_n(object, L"key") == (expectedKind == 3 ? 42.5 : 0));
+    } else {
+        auto collection = ob_get_c(object, L"key");
+        assert(bool(collection) == (expectedKind == 5));
+        if (collection) PA_DisposeCollection(collection);
+    }
+}
+
+static void jsonGetter(int getter) {
+    for (int kind = 0; kind < 7; ++kind) {
+        auto* object = newReference();
+        object->properties[u"key"] = fixtureValue(kind);
+        for (int round = 0; round < 3; ++round) callGetter(getter, object, kind);
+        PA_DisposeObject(object);
+    }
+    auto* absent = newReference();
+    CUTF8String output;
+    assert(!ob_get_a(absent, L"missing", &output));
+    assert(!ob_get_b(absent, L"missing"));
+    assert(ob_get_n(absent, L"missing") == 0);
+    assert(!ob_get_c(absent, L"missing"));
+    PA_DisposeObject(absent);
+}
+
+static void getterFailure(bool hasFailure) {
+    auto* object = newReference();
+    object->properties[u"key"] = fixtureValue(0);
+    failHas = hasFailure;
+    failProperty = !hasFailure;
+    for (int getter = 0; getter < 4; ++getter) {
+        bool threw = false;
+        try { callGetter(getter, object, 0); }
+        catch (const std::runtime_error& error) {
+            threw = std::string(error.what()).find("-1") != std::string::npos;
+        }
+        assert(threw);
+    }
+    if (hasFailure) {
+        bool threw = false;
+        try { ob_is_defined(object, L"key"); }
+        catch (const std::runtime_error& error) {
+            threw = std::string(error.what()).find("-1") != std::string::npos;
+        }
+        assert(threw);
+    }
+    PA_DisposeObject(object);
+}
+
+static void referenceControls() {
+    auto* object = newReference();
+    ob_set_o(object, L"object", newReference());
+    ob_set_o(object, "object", newReference());
+    ob_set_c(object, L"collection", newReference());
+    ob_set_b(object, L"bool", true);
+    ob_set_i(object, L"int", 42);
+    ob_set_n(object, L"number", 42.5);
+    assert(ob_is_defined(object, L"object"));
+    PA_DisposeObject(object);
+}
+
+static void stringify(const std::string& name) {
+    auto* object = newReference();
+    object->properties[u"input"] = fixtureValue(0);
+    failStringify = name == "json-stringify-failure";
+    failCopy = name == "json-copy-failure";
+    if (failStringify || failCopy) {
+        bool threw = false;
+        CUTF8String output;
+        try { ob_stringify(object, &output); }
+        catch (const std::runtime_error& error) {
+            threw = std::string(error.what()).find("-1") != std::string::npos;
+        }
+        assert(threw);
+    } else {
+        for (int kind : {0, 1, 4, 5, 6}) {
+            commandResult = fixtureValue(kind);
+            CUTF8String output(reinterpret_cast<const uint8_t*>("unchanged"));
+            ob_stringify(object, &output);
+            const char* expected = kind <= 1 ?
+                "ASCII-\xe6\x97\xa5-\xf0\x9f\x98\x80" : "unchanged";
+            assert(std::string(output.begin(), output.end()) == expected);
+            releaseVariable(commandResult);
+        }
+    }
+    PA_DisposeObject(object);
+}
+
+static void setterFailure() {
+    auto* object = newReference();
+    object->properties[u"key"] = fixtureValue(0);
+    failSet = true;
+    for (int setter = 0; setter < 11; ++setter) {
+        bool threw = false;
+        try {
+            switch (setter) {
+                case 0: ob_set_s(object, "key", "text"); break;
+                case 1: ob_set_s(object, L"key", "text"); break;
+                case 2: ob_set_a(object, L"key", L"text"); break;
+                case 3: {
+                    CUTF16String value(reinterpret_cast<const PA_Unichar*>(u"text"));
+                    ob_set_a(object, L"key", &value);
+                    break;
+                }
+                case 4: ob_set_p(object, L"key", newReference()); break;
+                case 5: ob_set_o(object, L"key", newReference()); break;
+                case 6: ob_set_o(object, "key", newReference()); break;
+                case 7: ob_set_c(object, L"key", newReference()); break;
+                case 8: ob_set_b(object, L"key", true); break;
+                case 9: ob_set_i(object, L"key", 42); break;
+                case 10: ob_set_n(object, L"key", 42.5); break;
+            }
+        } catch (const std::runtime_error& error) {
+            threw = std::string(error.what()).find("-1") != std::string::npos;
+        }
+        assert(threw);
+        equal(object->properties.at(u"key").uValue.fString, u"ASCII-\u65e5-\U0001f600");
+    }
+    PA_DisposeObject(object);
+}
+
+static void stringGetFailure(bool stringifyResult) {
+    auto* object = newReference();
+    object->properties[u"key"] = fixtureValue(0);
+    commandResult = fixtureValue(0);
+    failStringGet = true;
+    CUTF8String output;
+    bool threw = false;
+    try {
+        if (stringifyResult) ob_stringify(object, &output);
+        else ob_get_a(object, L"key", &output);
+    } catch (const std::runtime_error& error) {
+        threw = std::string(error.what()).find("-1") != std::string::npos;
+    }
+    assert(threw);
+    releaseVariable(commandResult);
+    PA_DisposeObject(object);
+}
+
+template<typename T> static void arrayCopy(std::true_type) {
+    T original;
+    original.appendUTF16String(reinterpret_cast<const PA_Unichar*>(u"owner"));
+    { T alias(original); }
+    assert(original.getSize() == 1); // Baseline alias already destroyed this owner.
+}
+template<typename T> static void arrayCopy(std::false_type) {
+    static_assert(!std::is_copy_assignable<T>::value, "No shallow assignment");
+}
+template<typename T> static void blobCopy(std::true_type) {
+    T original;
+    const uint8_t input[] = {1, 2, 3};
+    original.setBytes(input, sizeof(input));
+    { T alias(original); }
+    assert(original.getBytesLength() == sizeof(input));
+}
+template<typename T> static void blobCopy(std::false_type) {
+    static_assert(!std::is_copy_assignable<T>::value, "No shallow assignment");
+}
+
 int main(int argc, char** argv) {
     assert(argc == 2);
     gCall4D = host;
@@ -331,11 +700,34 @@ int main(int argc, char** argv) {
     if (name == "sdk-transfer-controls") sdkControls();
     else if (name == "wrapper-controls") wrapperControls();
     else if (name == "scalar-dispatcher-controls") scalarDispatcherControls();
+    else if (name == "json-set-failure") setterFailure();
+    else if (name == "json-string-get-failure") stringGetFailure(false);
+    else if (name == "json-stringify-get-failure") stringGetFailure(true);
+    else if (name.find("json-set-") == 0) jsonSetter(name);
+    else if (name == "json-picture-setter") pictureSetter(false);
+    else if (name == "json-null-picture-control") pictureSetter(true);
+    else if (name == "json-reference-controls") referenceControls();
+    else if (name == "json-get-text") jsonGetter(0);
+    else if (name == "json-get-bool") jsonGetter(1);
+    else if (name == "json-get-number") jsonGetter(2);
+    else if (name == "json-get-collection") jsonGetter(3);
+    else if (name == "json-get-failure") getterFailure(false);
+    else if (name == "json-has-failure") getterFailure(true);
+    else if (name.find("json-stringify-") == 0 || name == "json-copy-failure") stringify(name);
+    else if (name == "array-owning-copy")
+        arrayCopy<ARRAY_TEXT>(std::is_copy_constructible<ARRAY_TEXT>{});
+    else if (name == "blob-owning-copy")
+        blobCopy<C_BLOB>(std::is_copy_constructible<C_BLOB>{});
     else passed = destinationCase(name);
     if (name == "sdk-transfer-controls" || name == "wrapper-controls" ||
-        name == "scalar-dispatcher-controls") {
-        passed = strings.empty() && handles.empty();
-        std::cout << name << (passed ? " PASS\n" : " FAIL\n");
+        name == "scalar-dispatcher-controls" || name.find("json-") == 0 ||
+        name == "array-owning-copy" || name == "blob-owning-copy") {
+        passed = strings.empty() && handles.empty() && references.empty();
+        unsigned owners = 0;
+        for (auto reference : references) owners += reference.second;
+        std::cout << name << " strings=" << strings.size() << " handles=" << handles.size()
+                  << " references=" << references.size() << " reference_owners=" << owners
+                  << (passed ? " PASS\n" : " FAIL\n");
     }
     // Baseline leak evidence is recorded before bounded fixture cleanup.
     for (auto* string : strings) delete[] string;
@@ -343,5 +735,6 @@ int main(int argc, char** argv) {
         std::free(*entry.first);
         delete entry.first;
     }
+    for (auto entry : references) delete entry.first;
     return passed ? 0 : 1;
 }

@@ -65,6 +65,8 @@ typedef std::basic_string<uint8_t> CUTF8String;
 
 void json_wconv(const wchar_t *value, CUTF16String *u16);
 
+// Reference-valued setters consume the input owner on a non-null input branch.
+// Property/command failures throw std::runtime_error with the SDK error code.
 void ob_set_p(PA_ObjectRef obj, const wchar_t *_key, PA_Picture value);
 
 void ob_set_s(PA_ObjectRef obj, const wchar_t *_key, const char *_value);
@@ -93,6 +95,7 @@ bool ob_is_defined(PA_ObjectRef obj, const wchar_t *_key);
 bool ob_get_a(PA_ObjectRef obj, const wchar_t *_key, CUTF8String *value);
 bool ob_get_b(PA_ObjectRef obj, const wchar_t *_key);
 double ob_get_n(PA_ObjectRef obj, const wchar_t *_key);
+// A matching result transfers one collection owner; call PA_DisposeCollection.
 PA_CollectionRef ob_get_c(PA_ObjectRef obj, const wchar_t *_key);
 
 void ob_stringify(PA_ObjectRef obj, CUTF8String *value);
