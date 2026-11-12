@@ -17,6 +17,9 @@ XLSXIO reads and writes Excel `.xlsx` workbooks from 4D, using the open-source [
 array before handing over its fresh result, including empty results after an
 open/list failure. Its strings remain owned by the returned array. See
 [`tests/README.md`](tests/README.md) for the synthetic regression and audit scope.
+The dormant JSON helpers also balance successful owners and report SDK errors
+before interpreting failed outputs; raw-owning array/blob wrappers cannot be
+copied. Reference-valued JSON setters retain their existing consuming behavior.
 
 ---
 
