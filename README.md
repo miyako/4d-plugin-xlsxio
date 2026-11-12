@@ -13,6 +13,11 @@ XLSXIO reads and writes Excel `.xlsx` workbooks from 4D, using the open-source [
 
 **Platforms:** Windows (x64) and macOS (universal: Apple Silicon + Intel), macOS 10.13 or later.
 
+**Ownership maintenance:** `XLSX SHEET NAMES` releases the previous destination
+array before handing over its fresh result, including empty results after an
+open/list failure. Its strings remain owned by the returned array. See
+[`tests/README.md`](tests/README.md) for the synthetic regression and audit scope.
+
 ---
 
 ## Requirements & platform notes
